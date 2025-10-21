@@ -120,11 +120,11 @@
       TX: { name: 'Texas', count: 4987, scale: 0.83, type: 'Light', speed: 0.005 },
       AZ: { name: 'Arizona', count: 4234, scale: 0.74, type: 'Light', speed: 0.0015 },
       NC: { name: 'N. Carolina', count: 3234, scale: 0.60, type: 'Light', speed: 0.005 },
-      WA: { name: 'Washington', count: 5894, scale: 8.46, type: 'Triangle', speed: 0.003 },
+      WA: { name: 'Washington', count: 5894, scale: 8.46, type: 'Dish', speed: 0.003 },
       NY: { name: 'New York', count: 4523, scale: 0.78, type: 'Circle', speed: 0.003 },
-      PA: { name: 'Pennsylvania', count: 3987, scale: 6.39, type: 'Triangle', speed: 0.0015 },
+      PA: { name: 'Pennsylvania', count: 3987, scale: 6.39, type: 'Dish', speed: 0.0015 },
       OH: { name: 'Ohio', count: 3756, scale: 0.68, type: 'Circle', speed: 0.003 },
-      MI: { name: 'Michigan', count: 3623, scale: 5.94, type: 'Triangle', speed: 0.0015 }
+      MI: { name: 'Michigan', count: 3623, scale: 5.94, type: 'Dish', speed: 0.0015 }
     };
 
     let currentState = 'CA';
@@ -625,17 +625,10 @@
         document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const data = stateData[state];
-        document.getElementById('state-name').textContent = data.name;
-        
-        let icon = '';
-        if (data.type === 'Light') icon = '🔆';
-        else if (data.type === 'Circle') icon = '⭕';
-        else if (data.type === 'Triangle') icon = '🔺';
-        else if (data.type === 'All') icon = '🌐';
-        
-        document.getElementById('state-type').textContent = `${icon} ${data.type}`;
-        document.getElementById('state-count').textContent = `${data.count.toLocaleString()} sightings`;
-        buildSculpture(state);
+       document.getElementById('state-name').textContent = data.name;
+document.getElementById('state-type').textContent = data.type;
+document.getElementById('state-count').textContent = `${data.count.toLocaleString()} sightings`;
+buildSculpture(state);
       });
     });
 
