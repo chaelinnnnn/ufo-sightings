@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UFO Sightings</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #e8e8e8;
+      font-family: Arial, sans-serif;
+    }
+    
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+    }
+    
+    .state-btn {
+      padding: 8px 16px;
+      background: #f0f0f0;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      color: #333;
+      margin: 4px;
+    }
+    
+    .state-btn:hover {
+      background: #e0e0e0;
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .state-btn.active {
+      background: #333;
+      color: white;
+      border-color: #333;
+    }
+    
+    #info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      max-width: 250px;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <div id="state-name" style="font-weight: bold; color: #333; font-size: 18px;">California</div>
+    <div id="state-type" style="font-size: 13px; color: #888; margin-top: 3px;">🔆 Light</div>
+    <div id="state-count" style="font-size: 14px; color: #666; margin-top: 5px;">15,836 sightings</div>
+  </div>
+  
+  <div id="controls">
+    <div style="display: flex; gap: 8px; justify-content: center;">
+      <button class="state-btn" data-state="ALL">All</button>
+      <button class="state-btn active" data-state="CA">California</button>
+      <button class="state-btn" data-state="FL">Florida</button>
+      <button class="state-btn" data-state="TX">Texas</button>
+      <button class="state-btn" data-state="AZ">Arizona</button>
+      <button class="state-btn" data-state="NC">N. Carolina</button>
+    </div>
+    <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+      <button class="state-btn" data-state="NY">New York</button>
+      <button class="state-btn" data-state="OH">Ohio</button>
+      <button class="state-btn" data-state="WA">Washington</button>
+      <button class="state-btn" data-state="PA">Pennsylvania</button>
+      <button class="state-btn" data-state="MI">Michigan</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe8e8e8);
+    
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(5, 3, 8);
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    keyLight.position.set(10, 15, 8);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+    
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    fillLight.position.set(-8, 8, -8);
+    scene.add(fillLight);
+
+    const stateData = {
+      ALL: { name: 'All States', count: 50982, scale: 1.0, type: 'All', speed: 0.002 },
+      CA: { name: 'California', count: 12024, scale: 1.50, type: 'Light', speed: 0.005 },
+      FL: { name: 'Florida', count: 5621, scale: 0.91, type: 'Light', speed: 0.005 },
+      TX: { name: 'Texas', count: 4987, scale: 0.83, type: 'Light', speed: 0.005 },
+      AZ: { name: 'Arizona', count: 4234, scale: 0.74, type: 'Light', speed: 0.0015 },
+      NC: { name: 'N. Carolina', count: 3234, scale: 0.60, type: 'Light', speed: 0.005 },
+      WA: { name: 'Washington', count: 5894, scale: 8.46, type: 'Triangle', speed: 0.003 },
+      NY: { name: 'New York', count: 4523, scale: 0.78, type: 'Circle', speed: 0.003 },
+      PA: { name: 'Pennsylvania', count: 3987, scale: 6.39, type: 'Triangle', speed: 0.0015 },
+      OH: { name: 'Ohio', count: 3756, scale: 0.68, type: 'Circle', speed: 0.003 },
+      MI: { name: 'Michigan', count: 3623, scale: 5.94, type: 'Triangle', speed: 0.0015 }
+    };
+
+    let currentState = 'CA';
+    let sculptureGroup = null;
+
+    function createMetal(color) {
+      return new THREE.MeshStandardMaterial({
+        color: color,
+        metalness: 0.95,
+        roughness: 0.1,
+        side: THREE.DoubleSide
+      });
+    }
+
+    function createSmoothRibbon(s, angle) {
+      const ribbonGroup = new THREE.Group();
+      const segments = 100;
+      const ribbonRadius = 0.15 * s;
+      const heightRange = 4.5 * s;
+      const maxRadius = 2.3 * s;
+      
+      const points = [];
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const y = (t - 0.5) * heightRange;
+        const radius = Math.sin(t * Math.PI) * maxRadius;
+        const twist = t * Math.PI * 1.5;
+        
+        points.push(new THREE.Vector3(
+          Math.cos(twist) * radius,
+          y,
+          Math.sin(twist) * radius
+        ));
+      }
+      
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tubeGeometry = new THREE.TubeGeometry(curve, 100, ribbonRadius, 16, false);
+      const mesh = new THREE.Mesh(tubeGeometry, createMetal(0x888888));
+      mesh.castShadow = true;
+      ribbonGroup.add(mesh);
+      
+      ribbonGroup.rotation.y = angle;
+      return ribbonGroup;
+    }
+
+    function createCurvedRibbon(s, angle, lift) {
+      const segments = 40;
+      const length = 0.25 * s;
+      const baseWidth = 0.03 * s;
+      const thickness = 0.004 * s;
+      
+      const geometry = new THREE.BufferGeometry();
+      const vertices = [];
+      const indices = [];
+      
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const dist = length * t;
+        
+        const centerX = Math.cos(angle) * dist;
+        const centerZ = Math.sin(angle) * dist;
+        const centerY = lift * dist * Math.sin(t * Math.PI * 0.6);
+        
+        const wave = Math.sin(t * Math.PI * 3) * 0.3 + 0.7;
+        const currentWidth = baseWidth * wave;
+        
+        const perpX = -Math.sin(angle);
+        const perpZ = Math.cos(angle);
+        
+        const leftX = centerX + perpX * currentWidth;
+        const leftZ = centerZ + perpZ * currentWidth;
+        const leftY = centerY;
+        
+        const rightX = centerX - perpX * currentWidth;
+        const rightZ = centerZ - perpZ * currentWidth;
+        const rightY = centerY;
+        
+        vertices.push(leftX, leftY + thickness, leftZ);
+        vertices.push(rightX, rightY + thickness, rightZ);
+        vertices.push(leftX, leftY - thickness, leftZ);
+        vertices.push(rightX, rightY - thickness, rightZ);
+      }
+      
+      for (let i = 0; i < segments; i++) {
+        const base = i * 4;
+        const next = (i + 1) * 4;
+        
+        indices.push(base, next, base + 1);
+        indices.push(next, next + 1, base + 1);
+        
+        indices.push(base + 2, base + 3, next + 2);
+        indices.push(next + 2, base + 3, next + 3);
+        
+        indices.push(base, base + 2, next);
+        indices.push(next, base + 2, next + 2);
+        
+        indices.push(base + 1, next + 1, base + 3);
+        indices.push(next + 1, next + 3, base + 3);
+      }
+      
+      const posArray = new Float32Array(vertices);
+      geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      
+      const mesh = new THREE.Mesh(geometry, createMetal(0x777777));
+      mesh.castShadow = true;
+      
+      return mesh;
+    }
+
+    function makeCA(group, s, code) {
+      for (let i = 0; i < 6; i++) {
+        group.add(createSmoothRibbon(s, (i / 6) * Math.PI * 2));
+      }
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.15, 12.0, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -2.5;
+      group.add(axis);
+    }
+
+    function makeFL(group, s, code) {
+      for (let i = 0; i < 5; i++) {
+        group.add(createSmoothRibbon(s, (i / 5) * Math.PI * 2));
+      }
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.09, 5.7, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -1.0;
+      group.add(axis);
+    }
+
+    function makeTX(group, s, code) {
+      for (let i = 0; i < 4; i++) {
+        group.add(createSmoothRibbon(s, (i / 4) * Math.PI * 2));
+      }
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 4.9, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -0.7;
+      group.add(axis);
+    }
+
+    function makeAZ(group, s, code) {
+      for (let i = 0; i < 4; i++) {
+        group.add(createSmoothRibbon(s, (i / 4) * Math.PI * 2));
+      }
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 4.3, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -0.5;
+      group.add(axis);
+    }
+
+    function makeNC(group, s, code) {
+      for (let i = 0; i < 3; i++) {
+        group.add(createSmoothRibbon(s, (i / 3) * Math.PI * 2));
+      }
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 3.3, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -0.3;
+      group.add(axis);
+    }
+
+    function makeNY(group, s, code) {
+      const rotatedGroup = new THREE.Group();
+      rotatedGroup.rotation.z = Math.PI / 2;
+      const largeRings = [
+        { radius: 2.8, thickness: 0.12, rotX: Math.PI / 2, rotY: 0, rotZ: 0 },
+        { radius: 2.5, thickness: 0.11, rotX: Math.PI / 3, rotY: Math.PI / 6, rotZ: 0 }
+      ];
+      largeRings.forEach(ring => {
+        const geo = new THREE.TorusGeometry(ring.radius * s, ring.thickness * s, 16, 64);
+        const mesh = new THREE.Mesh(geo, createMetal(0x1a1a1a));
+        mesh.rotation.x = ring.rotX;
+        mesh.rotation.y = ring.rotY;
+        mesh.rotation.z = ring.rotZ;
+        mesh.castShadow = true;
+        rotatedGroup.add(mesh);
+      });
+      const mediumCurves = [
+        { radius: 1.8, thickness: 0.09, rotX: Math.PI / 4, rotY: Math.PI / 3, rotZ: 0 },
+        { radius: 1.6, thickness: 0.08, rotX: Math.PI / 1.8, rotY: -Math.PI / 4, rotZ: Math.PI / 6 },
+        { radius: 1.9, thickness: 0.085, rotX: Math.PI / 2.2, rotY: Math.PI / 2.5, rotZ: -Math.PI / 8 }
+      ];
+      mediumCurves.forEach(curve => {
+        const geo = new THREE.TorusGeometry(curve.radius * s, curve.thickness * s, 14, 56);
+        const mesh = new THREE.Mesh(geo, createMetal(0x252525));
+        mesh.rotation.x = curve.rotX;
+        mesh.rotation.y = curve.rotY;
+        mesh.rotation.z = curve.rotZ;
+        mesh.castShadow = true;
+        rotatedGroup.add(mesh);
+      });
+      const smallCurves = [
+        { radius: 0.9, thickness: 0.06, rotX: Math.PI / 3.5, rotY: Math.PI / 4.5, rotZ: Math.PI / 10 },
+        { radius: 1.0, thickness: 0.065, rotX: Math.PI / 2.8, rotY: -Math.PI / 3.8, rotZ: -Math.PI / 12 }
+      ];
+      smallCurves.forEach(curve => {
+        const geo = new THREE.TorusGeometry(curve.radius * s, curve.thickness * s, 12, 48);
+        const mesh = new THREE.Mesh(geo, createMetal(0x303030));
+        mesh.rotation.x = curve.rotX;
+        mesh.rotation.y = curve.rotY;
+        mesh.rotation.z = curve.rotZ;
+        mesh.castShadow = true;
+        rotatedGroup.add(mesh);
+      });
+      group.add(rotatedGroup);
+      
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 4.4, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -1.2;
+      group.add(axis);
+      
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.15 * s, 32, 32),
+        createMetal(0x888888)
+      );
+      sphere.castShadow = true;
+      sphere.position.y = 1.0;
+      group.add(sphere);
+    }
+
+    function makeOH(group, s, code) {
+      const rotatedGroup = new THREE.Group();
+      rotatedGroup.rotation.z = Math.PI / 2;
+      const largeRing = new THREE.TorusGeometry(2.6 * s, 0.12 * s, 16, 64);
+      const largeMesh = new THREE.Mesh(largeRing, createMetal(0x1a1a1a));
+      largeMesh.rotation.x = Math.PI / 2;
+      largeMesh.castShadow = true;
+      rotatedGroup.add(largeMesh);
+      const mediumCurves = [
+        { radius: 1.8, thickness: 0.09, rotX: Math.PI / 4, rotY: Math.PI / 3, rotZ: 0 },
+        { radius: 1.6, thickness: 0.08, rotX: Math.PI / 1.8, rotY: -Math.PI / 4, rotZ: Math.PI / 6 }
+      ];
+      mediumCurves.forEach(curve => {
+        const geo = new THREE.TorusGeometry(curve.radius * s, curve.thickness * s, 14, 56);
+        const mesh = new THREE.Mesh(geo, createMetal(0x252525));
+        mesh.rotation.x = curve.rotX;
+        mesh.rotation.y = curve.rotY;
+        mesh.rotation.z = curve.rotZ;
+        mesh.castShadow = true;
+        rotatedGroup.add(mesh);
+      });
+      const smallRing = new THREE.TorusGeometry(0.9 * s, 0.06 * s, 12, 48);
+      const smallMesh = new THREE.Mesh(smallRing, createMetal(0x303030));
+      smallMesh.rotation.x = Math.PI / 3.5;
+      smallMesh.rotation.y = Math.PI / 4.5;
+      smallMesh.rotation.z = Math.PI / 10;
+      smallMesh.castShadow = true;
+      rotatedGroup.add(smallMesh);
+      group.add(rotatedGroup);
+      
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 3.8, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -1.0;
+      group.add(axis);
+      
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.14 * s, 32, 32),
+        createMetal(0x888888)
+      );
+      sphere.castShadow = true;
+      sphere.position.y = 0.9;
+      group.add(sphere);
+    }
+
+    function makeWA(group, s, code) {
+      const ribbons = [
+        { angle: 0, lift: 0.9 },
+        { angle: Math.PI * 0.5, lift: 1.0 },
+        { angle: Math.PI, lift: 0.85 },
+        { angle: Math.PI * 1.5, lift: 0.95 }
+      ];
+      
+      const lowerGroup1 = new THREE.Group();
+      ribbons.forEach(r => {
+        lowerGroup1.add(createCurvedRibbon(s, r.angle, r.lift));
+      });
+      lowerGroup1.position.y = -0.25 * s;
+      group.add(lowerGroup1);
+      
+      const upperGroup1 = new THREE.Group();
+      ribbons.forEach(r => {
+        const ribbon = createCurvedRibbon(s, r.angle, r.lift);
+        ribbon.scale.y = -1;
+        upperGroup1.add(ribbon);
+      });
+      upperGroup1.position.y = 0.25 * s;
+      group.add(upperGroup1);
+      
+      const lowerGroup2 = new THREE.Group();
+      ribbons.forEach(r => {
+        lowerGroup2.add(createCurvedRibbon(s, r.angle, r.lift));
+      });
+      lowerGroup2.position.y = -0.25 * s;
+      lowerGroup2.rotation.y = Math.PI / 4;
+      group.add(lowerGroup2);
+      
+      const upperGroup2 = new THREE.Group();
+      ribbons.forEach(r => {
+        const ribbon = createCurvedRibbon(s, r.angle, r.lift);
+        ribbon.scale.y = -1;
+        upperGroup2.add(ribbon);
+      });
+      upperGroup2.position.y = 0.25 * s;
+      upperGroup2.rotation.y = Math.PI / 4;
+      group.add(upperGroup2);
+      
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.09, 5.8, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -1.0;
+      group.add(axis);
+    }
+
+    function makePA(group, s, code) {
+      const ribbons = [
+        { angle: 0, lift: 0.9 },
+        { angle: 2.09, lift: 1.0 },
+        { angle: 4.19, lift: 0.95 }
+      ];
+      
+      const lowerGroup1 = new THREE.Group();
+      ribbons.forEach(r => {
+        lowerGroup1.add(createCurvedRibbon(s, r.angle, r.lift));
+      });
+      lowerGroup1.position.y = -0.25 * s;
+      group.add(lowerGroup1);
+      
+      const upperGroup1 = new THREE.Group();
+      ribbons.forEach(r => {
+        const ribbon = createCurvedRibbon(s, r.angle, r.lift);
+        ribbon.scale.y = -1;
+        upperGroup1.add(ribbon);
+      });
+      upperGroup1.position.y = 0.25 * s;
+      group.add(upperGroup1);
+      
+      const lowerGroup2 = new THREE.Group();
+      ribbons.forEach(r => {
+        lowerGroup2.add(createCurvedRibbon(s, r.angle, r.lift));
+      });
+      lowerGroup2.position.y = -0.25 * s;
+      lowerGroup2.rotation.y = Math.PI / 4;
+      group.add(lowerGroup2);
+      
+      const upperGroup2 = new THREE.Group();
+      ribbons.forEach(r => {
+        const ribbon = createCurvedRibbon(s, r.angle, r.lift);
+        ribbon.scale.y = -1;
+        upperGroup2.add(ribbon);
+      });
+      upperGroup2.position.y = 0.25 * s;
+      upperGroup2.rotation.y = Math.PI / 4;
+      group.add(upperGroup2);
+      
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 3.9, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -0.6;
+      group.add(axis);
+    }
+
+    function makeMI(group, s, code) {
+      const ribbons = [
+        { angle: 0, lift: 0.9 },
+        { angle: 2.09, lift: 0.95 },
+        { angle: 4.19, lift: 0.88 }
+      ];
+      
+      const lowerGroup1 = new THREE.Group();
+      ribbons.forEach(r => {
+        lowerGroup1.add(createCurvedRibbon(s, r.angle, r.lift));
+      });
+      lowerGroup1.position.y = -0.25 * s;
+      group.add(lowerGroup1);
+      
+      const upperGroup1 = new THREE.Group();
+      ribbons.forEach(r => {
+        const ribbon = createCurvedRibbon(s, r.angle, r.lift);
+        ribbon.scale.y = -1;
+        upperGroup1.add(ribbon);
+      });
+      upperGroup1.position.y = 0.25 * s;
+      group.add(upperGroup1);
+      
+      const lowerGroup2 = new THREE.Group();
+      ribbons.forEach(r => {
+        lowerGroup2.add(createCurvedRibbon(s, r.angle, r.lift));
+      });
+      lowerGroup2.position.y = -0.25 * s;
+      lowerGroup2.rotation.y = Math.PI / 4;
+      group.add(lowerGroup2);
+      
+      const upperGroup2 = new THREE.Group();
+      ribbons.forEach(r => {
+        const ribbon = createCurvedRibbon(s, r.angle, r.lift);
+        ribbon.scale.y = -1;
+        upperGroup2.add(ribbon);
+      });
+      upperGroup2.position.y = 0.25 * s;
+      upperGroup2.rotation.y = Math.PI / 4;
+      group.add(upperGroup2);
+      
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 3.7, 16), 
+        createMetal(0x666666)
+      );
+      axis.castShadow = true;
+      axis.position.y = -0.5;
+      group.add(axis);
+    }
+
+    function buildSculpture(code) {
+      if (sculptureGroup) {
+        scene.remove(sculptureGroup);
+      }
+      sculptureGroup = new THREE.Group();
+      
+      if (code === 'ALL') {
+        const states = ['CA', 'FL', 'TX', 'AZ', 'NC', 'NY', 'OH', 'WA', 'PA', 'MI'];
+        const spacing = 3.5;
+        const startX = -(states.length - 1) * spacing / 2;
+        
+        states.forEach((stateCode, index) => {
+          const x = startX + index * spacing;
+          
+          const stateGroup = new THREE.Group();
+          const s = stateData[stateCode].scale;
+          
+          if (stateCode === 'CA') makeCA(stateGroup, s, stateCode);
+          else if (stateCode === 'FL') makeFL(stateGroup, s, stateCode);
+          else if (stateCode === 'TX') makeTX(stateGroup, s, stateCode);
+          else if (stateCode === 'AZ') makeAZ(stateGroup, s, stateCode);
+          else if (stateCode === 'NC') makeNC(stateGroup, s, stateCode);
+          else if (stateCode === 'NY') makeNY(stateGroup, s, stateCode);
+          else if (stateCode === 'OH') makeOH(stateGroup, s, stateCode);
+          else if (stateCode === 'WA') makeWA(stateGroup, s, stateCode);
+          else if (stateCode === 'PA') makePA(stateGroup, s, stateCode);
+          else if (stateCode === 'MI') makeMI(stateGroup, s, stateCode);
+          
+          stateGroup.scale.set(0.5, 0.5, 0.5);
+          stateGroup.position.set(x, 0, 0);
+          sculptureGroup.add(stateGroup);
+        });
+      } else {
+        const s = stateData[code].scale;
+        if (code === 'CA') makeCA(sculptureGroup, s, code);
+        else if (code === 'FL') makeFL(sculptureGroup, s, code);
+        else if (code === 'TX') makeTX(sculptureGroup, s, code);
+        else if (code === 'AZ') makeAZ(sculptureGroup, s, code);
+        else if (code === 'NC') makeNC(sculptureGroup, s, code);
+        else if (code === 'NY') makeNY(sculptureGroup, s, code);
+        else if (code === 'OH') makeOH(sculptureGroup, s, code);
+        else if (code === 'WA') makeWA(sculptureGroup, s, code);
+        else if (code === 'PA') makePA(sculptureGroup, s, code);
+        else if (code === 'MI') makeMI(sculptureGroup, s, code);
+      }
+      
+      scene.add(sculptureGroup);
+    }
+
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.25 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -3.8;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    buildSculpture(currentState);
+
+    document.querySelectorAll('.state-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const state = btn.getAttribute('data-state');
+        currentState = state;
+        document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const data = stateData[state];
+        document.getElementById('state-name').textContent = data.name;
+        
+        let icon = '';
+        if (data.type === 'Light') icon = '🔆';
+        else if (data.type === 'Circle') icon = '⭕';
+        else if (data.type === 'Triangle') icon = '🔺';
+        else if (data.type === 'All') icon = '🌐';
+        
+        document.getElementById('state-type').textContent = `${icon} ${data.type}`;
+        document.getElementById('state-count').textContent = `${data.count.toLocaleString()} sightings`;
+        buildSculpture(state);
+      });
+    });
+
+    let isDragging = false;
+    let previousMouseX = 0;
+    let previousMouseY = 0;
+    let cameraAngleX = 0;
+    let cameraAngleY = 0;
+    let cameraDistance = 8;
+    
+    document.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      previousMouseX = e.clientX;
+      previousMouseY = e.clientY;
+    });
+    
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const deltaX = e.clientX - previousMouseX;
+        const deltaY = e.clientY - previousMouseY;
+        cameraAngleY += deltaX * 0.005;
+        cameraAngleX += deltaY * 0.005;
+        cameraAngleX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraAngleX));
+        previousMouseX = e.clientX;
+        previousMouseY = e.clientY;
+      }
+    });
+    
+    document.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      cameraDistance += e.deltaY * 0.01;
+      cameraDistance = Math.max(3, Math.min(20, cameraDistance));
+    }, { passive: false });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (sculptureGroup) {
+        sculptureGroup.rotation.y += stateData[currentState].speed;
+      }
+      camera.position.x = Math.sin(cameraAngleY) * Math.cos(cameraAngleX) * cameraDistance;
+      camera.position.y = Math.sin(cameraAngleX) * cameraDistance;
+      camera.position.z = Math.cos(cameraAngleY) * Math.cos(cameraAngleX) * cameraDistance;
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+    }
+    
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
