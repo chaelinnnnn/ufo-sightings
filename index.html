@@ -672,7 +672,7 @@
       scene.add(sculptureGroup);
     }
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.6 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.3 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -3.8;
     ground.receiveShadow = true;
