@@ -160,8 +160,8 @@
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
     keyLight.position.set(10, 15, 8);
     keyLight.castShadow = true;
-    keyLight.shadow.camera.left = -55;
-    keyLight.shadow.camera.right = 55;
+    keyLight.shadow.camera.left = -65;
+    keyLight.shadow.camera.right = 65;
     keyLight.shadow.camera.top = 50;
     keyLight.shadow.camera.bottom = -50;
     keyLight.shadow.camera.near = 0.5;
@@ -672,7 +672,7 @@
       scene.add(sculptureGroup);
     }
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.25 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.6 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -3.8;
     ground.receiveShadow = true;
