@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -181,11 +182,11 @@
       TX: { name: 'Texas', count: 4987, scale: 0.83, type: 'Light', speed: 0.005 },
       AZ: { name: 'Arizona', count: 4234, scale: 0.74, type: 'Light', speed: 0.0015 },
       NC: { name: 'N. Carolina', count: 3234, scale: 0.60, type: 'Light', speed: 0.005 },
-      WA: { name: 'Washington', count: 5894, scale: 8.46, type: 'Dish', speed: 0.003 },
+      WA: { name: 'Washington', count: 5894, scale: 8.46, type: 'Disk', speed: 0.003 },
       NY: { name: 'New York', count: 4523, scale: 0.78, type: 'Circle', speed: 0.003 },
-      PA: { name: 'Pennsylvania', count: 3987, scale: 6.39, type: 'Dish', speed: 0.0015 },
+      PA: { name: 'Pennsylvania', count: 3987, scale: 6.39, type: 'Disk', speed: 0.0015 },
       OH: { name: 'Ohio', count: 3756, scale: 0.68, type: 'Circle', speed: 0.003 },
-      MI: { name: 'Michigan', count: 3623, scale: 5.94, type: 'Dish', speed: 0.0015 }
+      MI: { name: 'Michigan', count: 3623, scale: 5.94, type: 'Disk', speed: 0.0015 }
     };
 
     let currentState = 'ALL';
@@ -452,7 +453,7 @@
       smallMesh.rotation.y = Math.PI / 4.5;
       smallMesh.rotation.z = Math.PI / 10;
       smallMesh.castShadow = true;
-      rotatedGroup.add(smallMesh);
+      rotatedGroup.add(smallRing);
       group.add(rotatedGroup);
       
       const axis = new THREE.Mesh(
